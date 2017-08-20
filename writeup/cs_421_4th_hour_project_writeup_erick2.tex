@@ -1,0 +1,131 @@
+\documentclass{article}
+\usepackage{minted}
+
+\begin{document}
+
+\title{CS 421 (Summer 2017) 4th Hour Project\\\large{An Interpreter for Dynamic Delimited Continuations}}
+\author{Eric Kutschera (erick2@illinois.edu)}
+\maketitle
+
+\section*{Overview}
+
+\subsection*{Motivation}
+
+\paragraph{}
+This project is an implementation of an interpreter based on \textit{``A Dynamic Continuation-Passing Style for Dynamic Delimited Continuations''}\footnote{Dariusz Biernacki, Olivier Danvy, and Kevin Millikin. 2015. A Dynamic Continuation-Passing Style for Dynamic Delimited Continuations. ACM Trans. Program. Lang. Syst. 38, 1, Article 2 (October 2015), 25 pages. DOI: http://dx.doi.org.proxy2.library.illinois.edu/10.1145/2794078}. That paper derives various properties about the constructs \textbf{control} and \textbf{prompt}, but this project is based only on the abstract machine presented in Figure 2 of that paper.
+
+\paragraph{}
+The abstract machine describes the evaluation of the untyped lambda calculus (variables: $x$, abstraction: $\lambda x. e$, application: $e_0e_1$) extended with \textbf{control} ($\mathcal{F}x.e$) and \textbf{prompt} ($\#e$). The new constructs allow for the current continuation to be captured and used as a variable. The exact behavior is best understood by looking at the abstract machine or the test cases of this project, but the core idea is that \textbf{control} captures any function application operations that are in progress up until the nearest enclosing \textbf{prompt}. The captured operations can be applied as a variable any number of times inside the \textbf{control} expression.
+
+\paragraph{}
+In order to make testing and demonstrating the behavior of the interpreter easier, integer constants, arithmetic operators ($+,-,*,/$), and comparison operators ($<,>,<=,>=,==,/=$)are included in the language.
+
+\subsection*{Goals}
+
+\begin{itemize}
+\item Understand how to evaluate the untyped $\lambda$-calculus
+\item Work with non-trivial $\lambda$-calculus programs
+\item Understand an implementation of dynamic delimited continuations
+\item Understand what dynamic delimited continuations are good for
+\end{itemize}
+
+\subsection*{Broad Accomplishments}
+
+\begin{itemize}
+\item Translated a programming language abstract machine definition into Haskell
+\item Extended the $\lambda$-calculus with integer arithmetic and comparison operators
+\item Implemented $\beta$-reduction and $\alpha$-renaming for the core $\lambda$-calculus
+\item Utilized the Church encoding for booleans and $\lambda$-calculus recursion to create complex test cases
+\end{itemize}
+
+\section*{Implementation}
+
+\subsection*{Major Capabilities of Code}
+
+\paragraph{}
+The code is able to evaluate abstract syntax trees for the $\lambda$-calculus extended with \textbf{control} ($\mathcal{F}x.e$) and \textbf{prompt} ($\#e$) as well as integer arithmetic and comparison operators. This can result in an integer in the simplest case, a closure if the AST evaluates to a $\lambda$-abstraction, or a continuation captured by a $\mathcal{F}$ expression.
+
+\subsection*{Components of Code}
+
+\begin{itemize}
+\item Definitions of the data types used to represent the AST
+\item A pretty-printer for the AST
+\item Definitions of the data types used to represent the objects manipulated by the abstract machine (This includes the types of possible output values)
+\item Functions for lifting Haskell operations on integers so that they work on the AST
+\item Functions which implement $\alpha$-renaming and $\beta$-reduction
+\item The evaluator for the AST based on the abstract machine presented in the motivating paper
+\end{itemize}
+
+\subsection*{Status of project}
+
+\paragraph{}
+All features outlined in the proposal given for this project have been implemented. In addition, integer comparison operators have been implemented which were not mentioned in the proposal.
+
+\begin{itemize}
+\item What works well
+  \begin{itemize}
+  \item Simplification of $\lambda$-calculus expressions
+  \item Evaluation of the extended $\lambda$-calculus according to the rules of the abstract machine
+  \item Evaluation of integer operations
+  \end{itemize}
+\item What works partially
+  \begin{itemize}
+  \item $\alpha$-renaming works correctly for variables, abstractions, applications, and integer operations. $\alpha$-renaming is not attempted for expressions which contain \textbf{control} ($\mathcal{F}x.e$) or \textbf{prompt} ($\#e$). No example scenarios have been thought through, and at this point the lack of $\alpha$-renaming may be either a feature or a bug.
+  \end{itemize}
+\item Potential improvements
+  \begin{itemize}
+  \item A parser and REPL could be added to improve usability
+  \item \textbf{control} ($\mathcal{F}$) cannot interrupt integer operators in the current implementation. This is because integer operations are evaluated directly without creating continuations to be processed by the abstract machine. This could be modified to allow for capturing. In the current version this limitation can be overcome by specifying the order of integer operations manually with $\lambda$-abstractions.
+  \end{itemize}
+\end{itemize}
+
+\section*{Tests}
+
+\paragraph{}
+The test runner is defined in \texttt{test/Spec.hs} and it executes various groupings of individual test cases. A description of each grouping follows:
+% describe the tests and how they exercise the concept(s) implemented
+
+\begin{itemize}
+\item evalBasic: Evaluation of minimal expressions
+\item lambdaApplication: Simplification of $\lambda$-calculus expressions. This is based on the examples from the PDF used in lecture.
+\item freeVars: A unit test for identifying the set of free variables. This is needed for $\alpha$-renaming.
+\item alphaRenaming: Simplification of $\lambda$-calculus expressions which require $\alpha$-renaming. This is based on the examples from the PDF used in lecture.
+\item integerArithmetic: Evaluation of integer arithmetic operations for cases when operands can and cannot be evaluated
+\item integerFunctions: Evaluation of integer functions implemented as abstractions which are applied to integer expressions
+\item booleanFunctions: Evaluation of expressions which apply the Church encoding for booleans. The booleans are the results of integer comparison operations.
+\item factorialCalls: The factorial function is implemented as an AST and applied to various integer expressions. This is intended to be a comprehensive test of everything except $\mathcal{F}$ and $\#$.
+\item basicPrompt: Evaluation of expressions which have $\#$ but not $\mathcal{F}$
+\item basicControl: Evaluation of expressions which have $\mathcal{F}$ but not $\#$
+\item basicControlAndPrompt: Evaluation of relatively simple expressions which involve $\mathcal{F}$ and which behave differently when $\#$ is added in certain places
+\item controlAndPrompt: Evaluation of complex expressions involving control and prompt including:
+  \begin{itemize}
+  \item An expression which returns a closure which has a built-up continuation trail with multiple captured continuations in the environment
+  \item An expression with nested $\mathcal{F}$ expressions delimited by $\#$
+  \item Expressions which use a definition of factorial implemented with $\mathcal{F}$ and $\#$
+  \end{itemize}
+\end{itemize}
+
+\section*{Listing}
+
+\paragraph{}
+The full source code for \texttt{src/Main.hs}, \texttt{test/Spec.hs}, and \texttt{test/Tests.hs} is presented below. Other project files are omitted since they serve only to build and execute the files listed here.
+
+\subsection*{src/Main.hs}
+
+\inputminted[fontfamily=tt, fontsize=\small, linenos=true, stepnumber=5, breaklines=true]{haskell}{../cs421-project-erick2/src/Main.hs}
+
+\subsection*{test/Spec.hs}
+
+\inputminted[fontfamily=tt, fontsize=\small, linenos=true, stepnumber=5, breaklines=true]{haskell}{../cs421-project-erick2/test/Spec.hs}
+
+\subsection*{test/Tests.hs}
+
+\inputminted[fontfamily=tt, fontsize=\small, linenos=true, stepnumber=5, breaklines=true]{haskell}{../cs421-project-erick2/test/Tests.hs}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-command-extra-options: "-shell-escape"
+%%% End:
